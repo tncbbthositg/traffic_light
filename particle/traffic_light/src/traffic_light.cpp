@@ -8,7 +8,7 @@
 
 // Include Particle Device OS APIs
 #include "Particle.h"
-#include "NeoPixel/neopixel.h"
+#include <neopixel.h>
 
 #define PIXEL_COUNT 3
 #define PIXEL_PIN D2
