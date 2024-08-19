@@ -8,6 +8,11 @@
 
 // Include Particle Device OS APIs
 #include "Particle.h"
+#include "NeoPixel/neopixel.h"
+
+#define PIXEL_COUNT 3
+#define PIXEL_PIN D2
+#define PIXEL_TYPE WS2812B
 
 // Let Device OS manage the connection to the Particle Cloud
 SYSTEM_MODE(AUTOMATIC);
@@ -19,13 +24,94 @@ SYSTEM_THREAD(ENABLED);
 // View logs with CLI using 'particle serial monitor --follow'
 SerialLogHandler logHandler(LOG_LEVEL_INFO);
 
+enum UserStatus {
+  USER_STATUS_AVAILABLE = 0,
+  USER_STATUS_BUSY,
+  USER_STATUS_DO_NOT_DISTURB,
+};
+
+enum UserStatus status = USER_STATUS_AVAILABLE;
+LEDStatus onboardLED;
+
+Adafruit_NeoPixel lights(PIXEL_COUNT, PIXEL_PIN, PIXEL_TYPE);
+
+enum TrafficLight {
+  TRAFFIC_LIGHT_GREEN = 0,
+  TRAFFIC_LIGHT_YELLOW,
+  TRAFFIC_LIGHT_RED,
+};
+
+int setAvailable(String _extra);
+int setBusy(String _extra);
+int setDoNotDisturb(String _extra);
+void showStatus();
+
 void setup() {
+  pinMode(PIXEL_PIN, OUTPUT);
+
+  lights.begin();
+  lights.clear();
+  lights.show();
+
   Particle.connect();
+  Particle.variable("status", status);
+
+  Particle.function("setAvailable", setAvailable);
+  Particle.function("setBusy", setBusy);
+  Particle.function("setDoNotDisturb", setDoNotDisturb);
 }
 
 void loop() {
   // Example: Publish event to cloud every 10 seconds. Uncomment the next 3 lines to try it!
-  Log.info("Sending Hello World to the cloud!");
-  Particle.publish("Hello world!");
-  delay( 60 * 1000 ); // milliseconds and blocking - see docs for more info!
+  showStatus();
+  delay(10);
+}
+
+void showStatus() {
+  lights.clear();
+
+  switch(status) {
+    case USER_STATUS_AVAILABLE:
+      onboardLED.setColor(RGB_COLOR_GREEN);
+      lights.setPixelColor(TRAFFIC_LIGHT_GREEN, RGB_COLOR_GREEN);
+      break;
+
+    case USER_STATUS_BUSY:
+      onboardLED.setColor(RGB_COLOR_YELLOW);
+      lights.setPixelColor(TRAFFIC_LIGHT_YELLOW, RGB_COLOR_YELLOW);
+      break;
+
+    case USER_STATUS_DO_NOT_DISTURB:
+      onboardLED.setColor(RGB_COLOR_RED);
+      lights.setPixelColor(TRAFFIC_LIGHT_RED, RGB_COLOR_RED);
+      break;
+  }
+
+  onboardLED.setPattern(LED_PATTERN_SOLID);
+  lights.show();
+
+  if (!onboardLED.isActive()) {
+    onboardLED.setActive(true);
+  }
+}
+
+int setAvailable(String _extra) {
+  status = USER_STATUS_AVAILABLE;
+  Log.info("You are now available.");
+  Particle.publish("You are now available.");
+  return 1;
+}
+
+int setBusy(String _extra) {
+  status = USER_STATUS_BUSY;
+  Log.info("You are now busy.");
+  Particle.publish("You are now busy.");
+  return 1;
+}
+
+int setDoNotDisturb(String _extra) {
+  status = USER_STATUS_DO_NOT_DISTURB;
+  Log.info("You are now set to do not disturb.");
+  Particle.publish("You are now set to do not disturb.");
+  return 1;
 }
