@@ -8,7 +8,8 @@
 
 // Include Particle Device OS APIs
 #include "Particle.h"
-#include <neopixel.h>
+// #include <lib/neopixel/src/neopixel.h>
+#include "neopixel.h"
 
 #define PIXEL_COUNT 3
 #define PIXEL_PIN D2
@@ -41,15 +42,19 @@ enum TrafficLight {
   TRAFFIC_LIGHT_RED,
 };
 
+int brightness = 0xFF;
+
 int setAvailable(String _extra);
 int setBusy(String _extra);
 int setDoNotDisturb(String _extra);
+int setBrightness(String brightness);
 void showStatus();
 
 void setup() {
   pinMode(PIXEL_PIN, OUTPUT);
 
   lights.begin();
+  lights.setBrightness(brightness);
   lights.clear();
   lights.show();
 
@@ -59,6 +64,8 @@ void setup() {
   Particle.function("setAvailable", setAvailable);
   Particle.function("setBusy", setBusy);
   Particle.function("setDoNotDisturb", setDoNotDisturb);
+
+  Particle.function("setBrightness", setBrightness);
 }
 
 void loop() {
@@ -69,6 +76,8 @@ void loop() {
 
 void showStatus() {
   lights.clear();
+
+  lights.setBrightness(brightness);
 
   switch(status) {
     case USER_STATUS_AVAILABLE:
@@ -98,20 +107,27 @@ void showStatus() {
 int setAvailable(String _extra) {
   status = USER_STATUS_AVAILABLE;
   Log.info("You are now available.");
-  Particle.publish("You are now available.");
+  Particle.publish("status_changed", String::format("%d", status));
   return 1;
 }
 
 int setBusy(String _extra) {
   status = USER_STATUS_BUSY;
   Log.info("You are now busy.");
-  Particle.publish("You are now busy.");
+  Particle.publish("status_changed", String::format("%d", status));
   return 1;
 }
 
 int setDoNotDisturb(String _extra) {
   status = USER_STATUS_DO_NOT_DISTURB;
   Log.info("You are now set to do not disturb.");
-  Particle.publish("You are now set to do not disturb.");
+  Particle.publish("status_changed", String::format("%d", status));
   return 1;
+}
+
+int setBrightness(String newBrightness) {
+  brightness = newBrightness.toInt();
+  Log.info(String::format("Brightness has been changed: %d", brightness));
+  Particle.publish("brightness_changed", String::format("%d", brightness));
+  return brightness;
 }
