@@ -5,5 +5,6 @@
         "*.ino": "cpp"
     },
     "particle.firmwareVersion": "3.3.1",
-    "particle.targetPlatform": "photon"
+    "particle.targetPlatform": "photon",
+    "particle.targetDevice": "office_light"
 }

@@ -15,6 +15,8 @@
 #define PIXEL_PIN D2
 #define PIXEL_TYPE WS2812B
 
+#define STATUS_CHANGED "status_changed"
+
 // Let Device OS manage the connection to the Particle Cloud
 SYSTEM_MODE(AUTOMATIC);
 
@@ -50,6 +52,18 @@ int setDoNotDisturb(String _extra);
 int setBrightness(String brightness);
 void showStatus();
 
+void onStatusChanged(const char *event, const char *data) {
+  int newStatus = atoi(data);
+  Log.info("Received status code event: %d", newStatus);
+
+  if (newStatus < 0 || newStatus > 2) {
+    Log.error("Invalid status code: %d", newStatus);
+    return;
+  }
+
+  status = (UserStatus)newStatus;
+}
+
 void setup() {
   pinMode(PIXEL_PIN, OUTPUT);
 
@@ -66,10 +80,11 @@ void setup() {
   Particle.function("setDoNotDisturb", setDoNotDisturb);
 
   Particle.function("setBrightness", setBrightness);
+
+  Particle.subscribe(STATUS_CHANGED, onStatusChanged);
 }
 
 void loop() {
-  // Example: Publish event to cloud every 10 seconds. Uncomment the next 3 lines to try it!
   showStatus();
   delay(10);
 }
@@ -81,22 +96,26 @@ void showStatus() {
 
   switch(status) {
     case USER_STATUS_AVAILABLE:
-      onboardLED.setColor(RGB_COLOR_GREEN);
-      lights.setPixelColor(TRAFFIC_LIGHT_GREEN, RGB_COLOR_GREEN);
+      // onboardLED.setColor(RGB_COLOR_GREEN);
+      lights.setPixelColor(TRAFFIC_LIGHT_GREEN, RGB_COLOR_WHITE);
+      // lights.setPixelColor(TRAFFIC_LIGHT_GREEN, RGB_COLOR_GREEN);
       break;
 
     case USER_STATUS_BUSY:
-      onboardLED.setColor(RGB_COLOR_YELLOW);
-      lights.setPixelColor(TRAFFIC_LIGHT_YELLOW, RGB_COLOR_YELLOW);
+      // onboardLED.setColor(RGB_COLOR_YELLOW);
+      lights.setPixelColor(TRAFFIC_LIGHT_YELLOW, RGB_COLOR_WHITE);
+      // lights.setPixelColor(TRAFFIC_LIGHT_YELLOW, RGB_COLOR_YELLOW);
       break;
 
     case USER_STATUS_DO_NOT_DISTURB:
-      onboardLED.setColor(RGB_COLOR_RED);
-      lights.setPixelColor(TRAFFIC_LIGHT_RED, RGB_COLOR_RED);
+      // onboardLED.setColor(RGB_COLOR_RED);
+      lights.setPixelColor(TRAFFIC_LIGHT_RED, RGB_COLOR_WHITE);
+      // lights.setPixelColor(TRAFFIC_LIGHT_RED, RGB_COLOR_RED);
       break;
   }
 
-  onboardLED.setPattern(LED_PATTERN_SOLID);
+  onboardLED.off();
+  // onboardLED.setPattern(LED_PATTERN_SOLID);
   lights.show();
 
   if (!onboardLED.isActive()) {
@@ -107,27 +126,27 @@ void showStatus() {
 int setAvailable(String _extra) {
   status = USER_STATUS_AVAILABLE;
   Log.info("You are now available.");
-  Particle.publish("status_changed", String::format("%d", status));
+  Particle.publish(STATUS_CHANGED, String::format("%d", status));
   return 1;
 }
 
 int setBusy(String _extra) {
   status = USER_STATUS_BUSY;
   Log.info("You are now busy.");
-  Particle.publish("status_changed", String::format("%d", status));
+  Particle.publish(STATUS_CHANGED, String::format("%d", status));
   return 1;
 }
 
 int setDoNotDisturb(String _extra) {
   status = USER_STATUS_DO_NOT_DISTURB;
   Log.info("You are now set to do not disturb.");
-  Particle.publish("status_changed", String::format("%d", status));
+  Particle.publish(STATUS_CHANGED, String::format("%d", status));
   return 1;
 }
 
 int setBrightness(String newBrightness) {
   brightness = newBrightness.toInt();
-  Log.info(String::format("Brightness has been changed: %d", brightness));
+  Log.info("Brightness has been changed: %d", brightness);
   Particle.publish("brightness_changed", String::format("%d", brightness));
   return brightness;
 }
