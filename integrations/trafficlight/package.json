@@ -2,7 +2,8 @@
   "name": "trafficlight",
   "displayName": "TrafficLight",
   "description": "VS Code Extension to set the traffic light status.",
-  "version": "0.0.1",
+  "version": "0.0.2",
+  "publisher": "tncbbthositg",
   "engines": {
     "vscode": "^1.91.0"
   },
@@ -41,6 +42,7 @@
   },
   "scripts": {
     "vscode:prepublish": "yarn run package",
+    "generate": "yarn run vsce package --allow-missing-repository",
     "compile": "yarn run check-types && yarn run lint && node esbuild.js",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.js --watch",
@@ -56,11 +58,12 @@
   "devDependencies": {
     "@types/mocha": "^10.0.7",
     "@types/node": "20.x",
-    "@types/vscode": "^1.93.0",
+    "@types/vscode": "^1.91.0",
     "@typescript-eslint/eslint-plugin": "^8.3.0",
     "@typescript-eslint/parser": "^8.3.0",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "^3.1.0",
     "esbuild": "^0.23.1",
     "eslint": "^9.9.1",
     "npm-run-all": "^4.1.5",

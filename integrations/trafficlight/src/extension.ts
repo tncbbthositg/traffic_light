@@ -53,12 +53,12 @@ export function activate(context: ExtensionContext) {
 
 		if (!newId) {
 			await context.secrets.delete(PARTICLE_ID_KEY);
-			window.showInformationMessage('Deleted your particle id.');
+			window.setStatusBarMessage('Deleted your particle id.', 5000);
 			return;
 		}
 
 		await context.secrets.store(PARTICLE_ID_KEY, newId);
-		window.showInformationMessage('Your new particle id is now set');
+		window.setStatusBarMessage('Your new particle id is now set', 5000);
 	});
 
 	const setUserToken = commands.registerCommand('trafficlight.setUserToken', async () => {
@@ -68,33 +68,33 @@ export function activate(context: ExtensionContext) {
 
 		if (!newToken) {
 			await context.secrets.delete(USER_TOKEN_KEY);
-			window.showInformationMessage('Deleted your particle user token.');
+			window.setStatusBarMessage('Deleted your particle user token.', 5000);
 			return;
 		}
 
 		await context.secrets.store(USER_TOKEN_KEY, newToken);
-		window.showInformationMessage('Particle user token updated.');
+		window.setStatusBarMessage('Particle user token updated.', 5000);
 	});
 
 	const doNotDisturb = commands.registerCommand('trafficlight.doNotDisturb', async () => {
 		const status = await setStatus('DoNotDisturb');
 		if (!status) { return; }
 
-		window.showInformationMessage('Your traffic light is now set to Do Not Disturb.');
+		window.setStatusBarMessage('Your traffic light is now set to Do Not Disturb.', 5000);
 	});
 
 	const available = commands.registerCommand('trafficlight.available', async () => {
 		const status = await setStatus('Available');
 		if (!status) { return; }
 
-		window.showInformationMessage('Your traffic light is now set to Available.');
+		window.setStatusBarMessage('Your traffic light is now set to Available.', 5000);
 	});
 
 	const busy = commands.registerCommand('trafficlight.busy', async () => {
 		const status = await setStatus('Busy');
 		if (!status) { return; }
 
-		window.showInformationMessage('Your traffic light is now set to Busy.');
+		window.setStatusBarMessage('Your traffic light is now set to Busy.', 5000);
 	});
 
 	context.subscriptions.push(available);
