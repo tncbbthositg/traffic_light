@@ -46,6 +46,7 @@ enum TrafficLight {
 
 int brightness = 0xFF;
 
+int getStatus();
 int setAvailable(String _extra);
 int setBusy(String _extra);
 int setDoNotDisturb(String _extra);
@@ -73,7 +74,7 @@ void setup() {
   lights.show();
 
   Particle.connect();
-  Particle.variable("status", status);
+  Particle.variable("status", getStatus);
 
   Particle.function("setAvailable", setAvailable);
   Particle.function("setBusy", setBusy);
@@ -121,6 +122,10 @@ void showStatus() {
   if (!onboardLED.isActive()) {
     onboardLED.setActive(true);
   }
+}
+
+int getStatus() {
+  return status;
 }
 
 int setAvailable(String _extra) {

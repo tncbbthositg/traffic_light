@@ -2,7 +2,7 @@
   "name": "trafficlight",
   "displayName": "TrafficLight",
   "description": "VS Code Extension to set the traffic light status.",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "publisher": "tncbbthositg",
   "engines": {
     "vscode": "^1.91.0"
@@ -17,10 +17,6 @@
       {
         "command": "trafficlight.setUserToken",
         "title": "Traffic Light: Set User Token"
-      },
-      {
-        "command": "trafficlight.setParticleId",
-        "title": "Traffic Light: Set Particle Id"
       },
       {
         "command": "trafficlight.setParticleId",

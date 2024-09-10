@@ -1,7 +1,13 @@
-import { window, commands, ExtensionContext } from 'vscode';
+import { window, commands, ExtensionContext, StatusBarItem, ThemeColor } from 'vscode';
 
 const USER_TOKEN_KEY = 'trafficlight.usertoken';
 const PARTICLE_ID_KEY = 'trafficlight.particleId';
+
+enum UserStatus {
+  AVAILABLE = 0,
+  BUSY,
+  DO_NOT_DISTURB,
+};
 
 type ParticleResponse = {
 	id: string;
@@ -12,7 +18,44 @@ type ParticleResponse = {
 
 type TrafficCommand = 'Available' | 'Busy' | 'DoNotDisturb';
 
+type StatusIndication = {
+	name: string;
+	color: ThemeColor;
+	backgroundColor?: ThemeColor;
+}
+
+const STATUS_INDICATIONS: Record<UserStatus, StatusIndication> = {
+	[UserStatus.AVAILABLE]: {
+		name: 'Available',
+		color: '#00ff00'
+	},
+	[UserStatus.BUSY]: {
+		name: 'Busy',
+		color: new ThemeColor('statusBarItem.warningForeground'),
+		backgroundColor: new ThemeColor('statusBarItem.warningBackground')
+	},
+	[UserStatus.DO_NOT_DISTURB]: {
+		name: 'DND',
+		color: new ThemeColor('statusBarItem.errorForeground'),
+		backgroundColor: new ThemeColor('statusBarItem.errorBackground')
+	},
+};
+
+let statusIndicator: StatusBarItem;
+
 export function activate(context: ExtensionContext) {
+	statusIndicator ??= window.createStatusBarItem();
+
+	const showStatus = (status: UserStatus) => {
+		const { name, color, backgroundColor } = STATUS_INDICATIONS[status];
+
+		statusIndicator.text = name;
+		statusIndicator.color = color;
+		statusIndicator.backgroundColor = backgroundColor;
+
+		statusIndicator.show();
+	}
+
 	const setStatus = async (status: TrafficCommand) => {
 		const userToken = await context.secrets.get(USER_TOKEN_KEY);
 
@@ -77,26 +120,27 @@ export function activate(context: ExtensionContext) {
 	});
 
 	const doNotDisturb = commands.registerCommand('trafficlight.doNotDisturb', async () => {
-		const status = await setStatus('DoNotDisturb');
-		if (!status) { return; }
+		const result = await setStatus('DoNotDisturb');
+		if (!result) { return; }
 
-		window.setStatusBarMessage('Your traffic light is now set to Do Not Disturb.', 5000);
+		showStatus(UserStatus.DO_NOT_DISTURB);
 	});
 
 	const available = commands.registerCommand('trafficlight.available', async () => {
-		const status = await setStatus('Available');
-		if (!status) { return; }
+		const result = await setStatus('Available');
+		if (!result) { return; }
 
-		window.setStatusBarMessage('Your traffic light is now set to Available.', 5000);
+		showStatus(UserStatus.AVAILABLE);
 	});
 
 	const busy = commands.registerCommand('trafficlight.busy', async () => {
-		const status = await setStatus('Busy');
-		if (!status) { return; }
+		const result = await setStatus('Busy');
+		if (!result) { return; }
 
-		window.setStatusBarMessage('Your traffic light is now set to Busy.', 5000);
+		showStatus(UserStatus.BUSY);
 	});
 
+	context.subscriptions.push(statusIndicator);
 	context.subscriptions.push(available);
 	context.subscriptions.push(busy);
 	context.subscriptions.push(doNotDisturb);
