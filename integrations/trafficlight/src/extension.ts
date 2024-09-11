@@ -1,4 +1,5 @@
 import { window, commands, ExtensionContext, StatusBarItem, ThemeColor } from 'vscode';
+import EventSource, { EventSourceInitDict } from 'eventsource';
 
 const USER_TOKEN_KEY = 'trafficlight.usertoken';
 const PARTICLE_ID_KEY = 'trafficlight.particleId';
@@ -43,8 +44,38 @@ const STATUS_INDICATIONS: Record<UserStatus, StatusIndication> = {
 
 let statusIndicator: StatusBarItem;
 
-export function activate(context: ExtensionContext) {
+export async function activate(context: ExtensionContext) {
 	statusIndicator ??= window.createStatusBarItem();
+
+	const handleStatusEvent = (ev: MessageEvent) => {
+		const data = JSON.parse(ev.data);
+		const status = data.data;
+
+		showStatus(status);
+	};
+
+	const subscribeToChanges = async () => {
+		const userToken = await context.secrets.get(USER_TOKEN_KEY);
+
+		if (!userToken) {
+			window.showErrorMessage('You have not set a Traffic Light user token yet.');
+			return;
+		}
+
+		const init: EventSourceInitDict = {
+			headers: {
+				'Authorization': `Bearer ${userToken}`,
+			},
+		};
+
+		const eventSource = new EventSource('https://api.particle.io/v1/devices/events/status_changed', init);
+		eventSource.onerror = (msg) => console.error(msg);
+		eventSource.addEventListener('status_changed', handleStatusEvent);
+
+		return eventSource;
+	};
+
+	const statusEvents = await subscribeToChanges();
 
 	const showStatus = (status: UserStatus) => {
 		const { name, color, backgroundColor } = STATUS_INDICATIONS[status];
@@ -54,7 +85,32 @@ export function activate(context: ExtensionContext) {
 		statusIndicator.backgroundColor = backgroundColor;
 
 		statusIndicator.show();
-	}
+	};
+
+	const getStatus = async () => {
+		const userToken = await context.secrets.get(USER_TOKEN_KEY);
+		const partcileId = await context.secrets.get(PARTICLE_ID_KEY);
+
+		if (!userToken || !partcileId) {
+			return false;
+		}
+
+		const init: RequestInit = {
+			method: 'GET',
+			headers: {
+				'Authorization': `Bearer ${userToken}`,
+			},
+		};
+
+		const response = await fetch(`https://api.particle.io/v1/devices/${partcileId}/status`, init);
+		const body = await response.json() as any;
+
+		console.log(body);
+
+		showStatus(body?.result);
+
+		return true;
+	};
 
 	const setStatus = async (status: TrafficCommand) => {
 		const userToken = await context.secrets.get(USER_TOKEN_KEY);
@@ -120,25 +176,24 @@ export function activate(context: ExtensionContext) {
 	});
 
 	const doNotDisturb = commands.registerCommand('trafficlight.doNotDisturb', async () => {
-		const result = await setStatus('DoNotDisturb');
-		if (!result) { return; }
-
-		showStatus(UserStatus.DO_NOT_DISTURB);
+		await setStatus('DoNotDisturb');
+		// if (!result) { return; }
+		// showStatus(UserStatus.DO_NOT_DISTURB);
 	});
 
 	const available = commands.registerCommand('trafficlight.available', async () => {
-		const result = await setStatus('Available');
-		if (!result) { return; }
-
-		showStatus(UserStatus.AVAILABLE);
+		await setStatus('Available');
+		// if (!result) { return; }
+		// showStatus(UserStatus.AVAILABLE);
 	});
 
 	const busy = commands.registerCommand('trafficlight.busy', async () => {
-		const result = await setStatus('Busy');
-		if (!result) { return; }
-
-		showStatus(UserStatus.BUSY);
+		await setStatus('Busy');
+		// if (!result) { return; }
+		// showStatus(UserStatus.BUSY);
 	});
+
+	await getStatus();
 
 	context.subscriptions.push(statusIndicator);
 	context.subscriptions.push(available);
@@ -146,6 +201,7 @@ export function activate(context: ExtensionContext) {
 	context.subscriptions.push(doNotDisturb);
 	context.subscriptions.push(setUserToken);
 	context.subscriptions.push(setParticleId);
+	context.subscriptions.push({ dispose: () => statusEvents?.close() });
 }
 
 export function deactivate() {}

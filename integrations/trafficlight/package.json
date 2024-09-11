@@ -2,7 +2,7 @@
   "name": "trafficlight",
   "displayName": "TrafficLight",
   "description": "VS Code Extension to set the traffic light status.",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "publisher": "tncbbthositg",
   "engines": {
     "vscode": "^1.91.0"
@@ -10,7 +10,9 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
@@ -52,6 +54,7 @@
     "test": "vscode-test"
   },
   "devDependencies": {
+    "@types/eventsource": "^1.1.15",
     "@types/mocha": "^10.0.7",
     "@types/node": "20.x",
     "@types/vscode": "^1.91.0",
@@ -66,6 +69,7 @@
     "typescript": "^5.5.4"
   },
   "dependencies": {
+    "eventsource": "^2.0.2",
     "yarn": "^1.22.22"
   }
 }
