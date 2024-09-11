@@ -42,49 +42,26 @@ const STATUS_INDICATIONS: Record<UserStatus, StatusIndication> = {
 	},
 };
 
-let statusIndicator: StatusBarItem;
+const statusIndicator: StatusBarItem = window.createStatusBarItem();
+
+const showStatus = (status: UserStatus) => {
+	const { name, color, backgroundColor } = STATUS_INDICATIONS[status];
+
+	statusIndicator.text = name;
+	statusIndicator.color = color;
+	statusIndicator.backgroundColor = backgroundColor;
+
+	statusIndicator.show();
+};
 
 export async function activate(context: ExtensionContext) {
-	statusIndicator ??= window.createStatusBarItem();
+	let statusEvents: EventSource | undefined;
 
 	const handleStatusEvent = (ev: MessageEvent) => {
 		const data = JSON.parse(ev.data);
 		const status = data.data;
 
 		showStatus(status);
-	};
-
-	const subscribeToChanges = async () => {
-		const userToken = await context.secrets.get(USER_TOKEN_KEY);
-
-		if (!userToken) {
-			window.showErrorMessage('You have not set a Traffic Light user token yet.');
-			return;
-		}
-
-		const init: EventSourceInitDict = {
-			headers: {
-				'Authorization': `Bearer ${userToken}`,
-			},
-		};
-
-		const eventSource = new EventSource('https://api.particle.io/v1/devices/events/status_changed', init);
-		eventSource.onerror = (msg) => console.error(msg);
-		eventSource.addEventListener('status_changed', handleStatusEvent);
-
-		return eventSource;
-	};
-
-	const statusEvents = await subscribeToChanges();
-
-	const showStatus = (status: UserStatus) => {
-		const { name, color, backgroundColor } = STATUS_INDICATIONS[status];
-
-		statusIndicator.text = name;
-		statusIndicator.color = color;
-		statusIndicator.backgroundColor = backgroundColor;
-
-		statusIndicator.show();
 	};
 
 	const getStatus = async () => {
@@ -105,11 +82,35 @@ export async function activate(context: ExtensionContext) {
 		const response = await fetch(`https://api.particle.io/v1/devices/${partcileId}/status`, init);
 		const body = await response.json() as any;
 
-		console.log(body);
-
 		showStatus(body?.result);
 
 		return true;
+	};
+
+	const subscribeToChanges = async () => {
+		if (!!statusEvents && statusEvents.readyState !== EventSource.CLOSED) { return; }
+
+		await getStatus();
+
+		const userToken = await context.secrets.get(USER_TOKEN_KEY);
+		if (!userToken) { return; }
+
+		const init: EventSourceInitDict = {
+			headers: {
+				'Authorization': `Bearer ${userToken}`,
+			},
+		};
+
+		const eventSource = new EventSource('https://api.particle.io/v1/devices/events/status_changed', init);
+		eventSource.addEventListener('status_changed', handleStatusEvent);
+
+		eventSource.onerror = (msg) => {
+			console.error('An error occurred in the status change event source.', msg);
+			console.log('Status change event source ready state:', eventSource.readyState);
+			eventSource.close();
+		};
+
+		statusEvents = eventSource;
 	};
 
 	const setStatus = async (status: TrafficCommand) => {
@@ -193,7 +194,7 @@ export async function activate(context: ExtensionContext) {
 		// showStatus(UserStatus.BUSY);
 	});
 
-	await getStatus();
+	const statusChangeReconnect = setInterval(subscribeToChanges, 1000);
 
 	context.subscriptions.push(statusIndicator);
 	context.subscriptions.push(available);
@@ -201,7 +202,9 @@ export async function activate(context: ExtensionContext) {
 	context.subscriptions.push(doNotDisturb);
 	context.subscriptions.push(setUserToken);
 	context.subscriptions.push(setParticleId);
+
 	context.subscriptions.push({ dispose: () => statusEvents?.close() });
+	context.subscriptions.push({ dispose: () => clearTimeout(statusChangeReconnect) });
 }
 
 export function deactivate() {}
