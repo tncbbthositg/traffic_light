@@ -1,4 +1,4 @@
-import { window, commands, ExtensionContext, StatusBarItem, ThemeColor } from 'vscode';
+import { window, commands, ExtensionContext, ThemeColor } from 'vscode';
 import EventSource, { EventSourceInitDict } from 'eventsource';
 
 const USER_TOKEN_KEY = 'trafficlight.usertoken';
@@ -42,7 +42,8 @@ const STATUS_INDICATIONS: Record<UserStatus, StatusIndication> = {
 	},
 };
 
-const statusIndicator: StatusBarItem = window.createStatusBarItem();
+const statusIndicator = window.createStatusBarItem();
+const outputChannel = window.createOutputChannel('Traffic Light', { log: true});
 
 const showStatus = (status: UserStatus) => {
 	const { name, color, backgroundColor } = STATUS_INDICATIONS[status];
@@ -57,10 +58,14 @@ const showStatus = (status: UserStatus) => {
 export async function activate(context: ExtensionContext) {
 	let statusEvents: EventSource | undefined;
 
+	outputChannel.show(true);
+
 	const handleStatusEvent = (ev: MessageEvent) => {
 		const data = JSON.parse(ev.data);
-		const status = data.data;
 
+		outputChannel.info('Status changed event received', data);
+
+		const status = data.data;
 		showStatus(status);
 	};
 
@@ -69,6 +74,7 @@ export async function activate(context: ExtensionContext) {
 		const partcileId = await context.secrets.get(PARTICLE_ID_KEY);
 
 		if (!userToken || !partcileId) {
+			outputChannel.warn('Unable to retrieve current status because the user token or particle id is missing.');
 			return false;
 		}
 
@@ -93,7 +99,12 @@ export async function activate(context: ExtensionContext) {
 		await getStatus();
 
 		const userToken = await context.secrets.get(USER_TOKEN_KEY);
-		if (!userToken) { return; }
+		if (!userToken) {
+			outputChannel.warn('Unable to subscribe to status change events because the user token is missing.');
+			return;
+		}
+
+		outputChannel.info('Attempting to subscribe to status change events');
 
 		const init: EventSourceInitDict = {
 			headers: {
@@ -105,8 +116,8 @@ export async function activate(context: ExtensionContext) {
 		eventSource.addEventListener('status_changed', handleStatusEvent);
 
 		eventSource.onerror = (msg) => {
-			console.error('An error occurred in the status change event source.', msg);
-			console.log('Status change event source ready state:', eventSource.readyState);
+			outputChannel.error('An error occurred in the status change event source.', msg);
+			outputChannel.info('Status change event source ready state:', eventSource.readyState);
 			eventSource.close();
 		};
 
@@ -117,6 +128,7 @@ export async function activate(context: ExtensionContext) {
 		const userToken = await context.secrets.get(USER_TOKEN_KEY);
 
 		if (!userToken) {
+			outputChannel.warn('User has not set a Traffic Light user token yet.');
 			window.showErrorMessage('You have not set a Traffic Light user token yet.');
 			return false;
 		}
@@ -124,6 +136,7 @@ export async function activate(context: ExtensionContext) {
 		const partcileId = await context.secrets.get(PARTICLE_ID_KEY);
 
 		if (!partcileId) {
+			outputChannel.warn('User has not set a Traffic Light particle id yet.');
 			window.showErrorMessage('You have not set a particle id yet.');
 			return false;
 		}
@@ -139,6 +152,7 @@ export async function activate(context: ExtensionContext) {
 		const result = await response.json() as ParticleResponse;
 
 		if (result.return_value !== 1) {
+			outputChannel.error('Unable to update traffic light status.', result);
 			window.showErrorMessage('Unable to update traffic light status. :(');
 			return false;
 		}
@@ -197,6 +211,7 @@ export async function activate(context: ExtensionContext) {
 	const statusChangeReconnect = setInterval(subscribeToChanges, 1000);
 
 	context.subscriptions.push(statusIndicator);
+	context.subscriptions.push(outputChannel);
 	context.subscriptions.push(available);
 	context.subscriptions.push(busy);
 	context.subscriptions.push(doNotDisturb);
