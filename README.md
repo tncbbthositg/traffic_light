@@ -16,6 +16,7 @@ There are three projects in this repo.
 * [WS2812B Strip](https://amzn.to/3TpgJ1s)
 * [Particle Photon](https://store.particle.io/collections/wifi/products/photon-2)
 * [Creality Ender 3](https://amzn.to/3ATZXRq)
+* [50 Colorful Ping Pong Balls](https://amzn.to/3XEKmOt)
 
 ## TODO
 

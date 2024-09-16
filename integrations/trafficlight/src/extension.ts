@@ -208,7 +208,14 @@ export async function activate(context: ExtensionContext) {
 		// showStatus(UserStatus.BUSY);
 	});
 
+	const reportConnectionStatus = () => {
+		const readyState = statusEvents?.readyState;
+
+		outputChannel.info('Connection Monitor', { readyState });
+	};
+
 	const statusChangeReconnect = setInterval(subscribeToChanges, 1000);
+	const connectionMonitor = setInterval(reportConnectionStatus, 30000);
 
 	context.subscriptions.push(statusIndicator);
 	context.subscriptions.push(outputChannel);
@@ -220,6 +227,7 @@ export async function activate(context: ExtensionContext) {
 
 	context.subscriptions.push({ dispose: () => statusEvents?.close() });
 	context.subscriptions.push({ dispose: () => clearTimeout(statusChangeReconnect) });
+	context.subscriptions.push({ dispose: () => clearTimeout(connectionMonitor) });
 }
 
 export function deactivate() {}

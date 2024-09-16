@@ -2,7 +2,7 @@
   "name": "trafficlight",
   "displayName": "TrafficLight",
   "description": "VS Code Extension to set the traffic light status.",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "publisher": "tncbbthositg",
   "engines": {
     "vscode": "^1.91.0"
