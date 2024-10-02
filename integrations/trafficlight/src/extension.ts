@@ -1,5 +1,6 @@
 import { window, commands, ExtensionContext, ThemeColor } from 'vscode';
 import EventSource, { EventSourceInitDict } from 'eventsource';
+import { ConnectionStatus, StatusEvents } from './StatusEvents';
 
 const USER_TOKEN_KEY = 'trafficlight.usertoken';
 const PARTICLE_ID_KEY = 'trafficlight.particleId';
@@ -56,13 +57,12 @@ const showStatus = (status: UserStatus) => {
 };
 
 export async function activate(context: ExtensionContext) {
-	let statusEvents: EventSource | undefined;
+	let statusEvents: StatusEvents | undefined;
 
 	outputChannel.show(true);
 
-	const handleStatusEvent = (ev: MessageEvent) => {
-		const data = JSON.parse(ev.data);
-
+	const handleStatusEvent = (message: string) => {
+		const data = JSON.parse(message);
 		outputChannel.info('Status changed event received', data);
 
 		const status = data.data;
@@ -94,7 +94,7 @@ export async function activate(context: ExtensionContext) {
 	};
 
 	const subscribeToChanges = async () => {
-		if (!!statusEvents && statusEvents.readyState !== EventSource.CLOSED) { return; }
+		if (!!statusEvents && statusEvents.status === ConnectionStatus.OPEN) { return; }
 
 		await getStatus();
 
@@ -104,24 +104,11 @@ export async function activate(context: ExtensionContext) {
 			return;
 		}
 
-		outputChannel.info('Attempting to subscribe to status change events');
+		const action = !!statusEvents ? 'resubscribe' : 'subscribe';
+		outputChannel.info(`Attempting to ${action} to status change events`);
 
-		const init: EventSourceInitDict = {
-			headers: {
-				'Authorization': `Bearer ${userToken}`,
-			},
-		};
-
-		const eventSource = new EventSource('https://api.particle.io/v1/devices/events/status_changed', init);
-		eventSource.addEventListener('status_changed', handleStatusEvent);
-
-		eventSource.onerror = (msg) => {
-			outputChannel.error('An error occurred in the status change event source.', msg);
-			outputChannel.info('Status change event source ready state:', eventSource.readyState);
-			eventSource.close();
-		};
-
-		statusEvents = eventSource;
+		statusEvents = new StatusEvents('https://api.particle.io/v1/devices/events/status_changed', userToken);
+		statusEvents.on('status_changed', handleStatusEvent);
 	};
 
 	const setStatus = async (status: TrafficCommand) => {
@@ -192,30 +179,17 @@ export async function activate(context: ExtensionContext) {
 
 	const doNotDisturb = commands.registerCommand('trafficlight.doNotDisturb', async () => {
 		await setStatus('DoNotDisturb');
-		// if (!result) { return; }
-		// showStatus(UserStatus.DO_NOT_DISTURB);
 	});
 
 	const available = commands.registerCommand('trafficlight.available', async () => {
 		await setStatus('Available');
-		// if (!result) { return; }
-		// showStatus(UserStatus.AVAILABLE);
 	});
 
 	const busy = commands.registerCommand('trafficlight.busy', async () => {
 		await setStatus('Busy');
-		// if (!result) { return; }
-		// showStatus(UserStatus.BUSY);
 	});
 
-	const reportConnectionStatus = () => {
-		const readyState = statusEvents?.readyState;
-
-		outputChannel.info('Connection Monitor', { readyState });
-	};
-
-	const statusChangeReconnect = setInterval(subscribeToChanges, 1000);
-	const connectionMonitor = setInterval(reportConnectionStatus, 30000);
+	const resubscribeInterval = setInterval(subscribeToChanges, 1000);
 
 	context.subscriptions.push(statusIndicator);
 	context.subscriptions.push(outputChannel);
@@ -225,9 +199,8 @@ export async function activate(context: ExtensionContext) {
 	context.subscriptions.push(setUserToken);
 	context.subscriptions.push(setParticleId);
 
-	context.subscriptions.push({ dispose: () => statusEvents?.close() });
-	context.subscriptions.push({ dispose: () => clearTimeout(statusChangeReconnect) });
-	context.subscriptions.push({ dispose: () => clearTimeout(connectionMonitor) });
+	context.subscriptions.push({ dispose: () => statusEvents?.dispose() });
+	context.subscriptions.push({ dispose: () => clearInterval(resubscribeInterval) });
 }
 
 export function deactivate() {}
