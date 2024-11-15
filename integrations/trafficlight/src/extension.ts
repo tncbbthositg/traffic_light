@@ -154,12 +154,12 @@ export async function activate(context: ExtensionContext) {
 
 		if (!newId) {
 			await context.secrets.delete(PARTICLE_ID_KEY);
-			window.setStatusBarMessage('Deleted your particle id.', 5000);
+			window.showWarningMessage('Deleted your particle id.');
 			return;
 		}
 
 		await context.secrets.store(PARTICLE_ID_KEY, newId);
-		window.setStatusBarMessage('Your new particle id is now set', 5000);
+		window.showInformationMessage('Your new particle id is now set.');
 	});
 
 	const setUserToken = commands.registerCommand('trafficlight.setUserToken', async () => {
@@ -169,12 +169,12 @@ export async function activate(context: ExtensionContext) {
 
 		if (!newToken) {
 			await context.secrets.delete(USER_TOKEN_KEY);
-			window.setStatusBarMessage('Deleted your particle user token.', 5000);
+			window.showWarningMessage('Deleted your particle user token.');
 			return;
 		}
 
 		await context.secrets.store(USER_TOKEN_KEY, newToken);
-		window.setStatusBarMessage('Particle user token updated.', 5000);
+		window.showInformationMessage('Particle user token updated.');
 	});
 
 	const doNotDisturb = commands.registerCommand('trafficlight.doNotDisturb', async () => {
