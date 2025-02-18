@@ -1,5 +1,4 @@
 import { window, commands, ExtensionContext, ThemeColor } from 'vscode';
-import EventSource, { EventSourceInitDict } from 'eventsource';
 import { ConnectionStatus, StatusEvents } from './StatusEvents';
 
 const USER_TOKEN_KEY = 'trafficlight.usertoken';
@@ -44,28 +43,32 @@ const STATUS_INDICATIONS: Record<UserStatus, StatusIndication> = {
 };
 
 const statusIndicator = window.createStatusBarItem();
+statusIndicator.command = 'trafficlight.showPicker';
+
 const outputChannel = window.createOutputChannel('Traffic Light', { log: true});
-
-const showStatus = (status: UserStatus) => {
-	const { name, color, backgroundColor } = STATUS_INDICATIONS[status];
-
-	statusIndicator.text = name;
-	statusIndicator.color = color;
-	statusIndicator.backgroundColor = backgroundColor;
-
-	statusIndicator.show();
-};
 
 export async function activate(context: ExtensionContext) {
 	let statusEvents: StatusEvents | undefined;
+	let currentStatus: UserStatus | undefined;
 
 	outputChannel.show(true);
+
+	const showStatus = (status: UserStatus) => {
+		const { name, color, backgroundColor } = STATUS_INDICATIONS[status];
+
+		statusIndicator.text = name;
+		statusIndicator.color = color;
+		statusIndicator.backgroundColor = backgroundColor;
+
+		statusIndicator.show();
+		currentStatus = status;
+	};
 
 	const handleStatusEvent = (message: string) => {
 		const data = JSON.parse(message);
 		outputChannel.info('Status changed event received', data);
 
-		const status = data.data;
+		const status = Number(data.data);
 		showStatus(status);
 	};
 
@@ -189,6 +192,14 @@ export async function activate(context: ExtensionContext) {
 		await setStatus('Busy');
 	});
 
+	const showPicker = commands.registerCommand('trafficlight.showPicker', async () => {
+		const isAvailable = (currentStatus ?? UserStatus.AVAILABLE) === UserStatus.AVAILABLE;
+		const newStatus = isAvailable ? 'DoNotDisturb' : 'Available';
+
+		outputChannel.info(`Toggling status to ${newStatus}`);
+		await setStatus(newStatus);
+	});
+
 	const resubscribeInterval = setInterval(subscribeToChanges, 1000);
 
 	context.subscriptions.push(statusIndicator);
@@ -196,6 +207,7 @@ export async function activate(context: ExtensionContext) {
 	context.subscriptions.push(available);
 	context.subscriptions.push(busy);
 	context.subscriptions.push(doNotDisturb);
+	context.subscriptions.push(showPicker);
 	context.subscriptions.push(setUserToken);
 	context.subscriptions.push(setParticleId);
 
